@@ -10,87 +10,136 @@ namespace atividade2aula5
         {
             string strConexao = "Server=localhost; Database=Sexta; Trusted_Connection=True;";
 
-                SqlConnection conexao = null;
-                SqlCommand comando = null;
-                try
-                {
-                    conexao = new SqlConnection(strConexao);
-                    conexao.Open();
-                    Console.WriteLine("Digite um nome para busca");
-                    string nome = Console.ReadLine();
-                    int codAluno = -1;
+            Console.WriteLine("Digite um nome para busca");
+            string nome = Console.ReadLine();
+            int codigoAluno = ObterCodigoAluno(nome, strConexao);
 
-                    string consulta = "SELECT * FROM Aluno WHERE nomeCompleto=@nomeCompleto";
-                    comando = new SqlCommand(consulta, conexao);
+            if(codigoAluno < 0)
+            {
+               Console.WriteLine("Não há alunos com esse nome, cadastre um novo!\n");
+               CadastrarNovoALuno(strConexao);
+            }
+            else
+            {
+                ExibirTelefones(codigoAluno, strConexao);
+            }
+            Console.WriteLine("\nO Programa foi finalizado!");
+        }
+        private static int ObterCodigoAluno(string nome, string strConexao)
+        {
+            int codAluno = -1;
+
+            try
+            {
+                using (SqlConnection conexao = new SqlConnection(strConexao))
+                {
+                    string consulta = "SELECT codAluno FROM Aluno WHERE nomeCompleto=@nomeCompleto";
+                    SqlCommand comando =  new SqlCommand(consulta, conexao);
+                    conexao.Open();
                     comando.Parameters.Add(new SqlParameter("@nomeCompleto", nome));
-                    SqlDataReader leitor = comando.ExecuteReader(CommandBehavior.CloseConnection);
+                    SqlDataReader leitor = comando.ExecuteReader();
                     while(leitor.Read())
                     {
                         codAluno = (int)leitor["codAluno"];
-                        Console.WriteLine(codAluno);
                     }
-                    if(codAluno < 0)
+                    leitor.Close();
+                } 
+            }
+            catch
+            {
+                Console.WriteLine("Erro ao obter o código do Aluno");
+            }
+            return codAluno;
+        }
+        private static void CadastrarNovoALuno(string strConexao)
+        {
+            int resultado = -1;
+
+            Console.WriteLine("Digite o Nome: ");
+            string novoNome = Console.ReadLine();
+            Console.WriteLine("Digite o Sobrenome: ");
+            string sobrenome = Console.ReadLine();
+            Console.WriteLine("Digite Data de Nascimento: (dia/mes/ano)");
+            DateTime data = Convert.ToDateTime(Console.ReadLine());
+
+            try
+            {
+                using (SqlConnection conexao = new SqlConnection(strConexao))
+                {
+                    string consulta = "INSERT INTO Aluno VALUES(@novoNome, @novaData, @novoSobrenome)";
+                    SqlCommand comando =  new SqlCommand(consulta, conexao);
+                    conexao.Open();
+                    comando.Parameters.Add(new SqlParameter("@novoNome", novoNome));
+                    comando.Parameters.Add(new SqlParameter("@novaData", data));
+                    comando.Parameters.Add(new SqlParameter("@novoSobrenome", sobrenome));
+                    resultado = comando.ExecuteNonQuery();
+                }
+                Console.WriteLine("Aluno Cadastrado Com Sucesso \n");
+            }
+            catch
+            {
+                Console.WriteLine("Erro ao obter o cadastrar aluno \n");
+            }
+            
+            if(resultado > 0)
+            {
+                Console.WriteLine("Cadastre os telefones para o novo Aluno\n");
+                CadastrarTelefones(ObterCodigoAluno($"{novoNome} {sobrenome}", strConexao), strConexao);
+            }
+        }
+        private static void CadastrarTelefones(int codAluno, string strConexao)
+        {
+            string resposta = "SIM";
+
+            while(resposta.ToUpper() == "SIM")
+            {
+                Console.WriteLine("Digite o Tipo para o Telefone");
+                string tipo = Console.ReadLine();
+                Console.WriteLine("Digite o Telefone");
+                string telefone = Console.ReadLine();
+
+                try
+                {
+                    using (SqlConnection conexao = new SqlConnection(strConexao))
                     {
-                        string novoNome = Console.ReadLine();
-                        DateTime data = Convert.ToDateTime(Console.ReadLine());
-                        string sobrenome = Console.ReadLine();
-                        
-                        consulta = "INSERT INTO Aluno VALUES(@novoNome, @novaData, @novoSobrenome)";
-                        comando.Parameters.Add(new SqlParameter("@novoNome", novoNome));
-                        comando.Parameters.Add(new SqlParameter("@novaData", data));
-                        comando.Parameters.Add(new SqlParameter("@novoSobrenome", sobrenome));
-                        comando = new SqlCommand(consulta, conexao);
-                        int resultado = comando.ExecuteNonQuery();
+                        string consulta = $"INSERT INTO Telefone VALUES({codAluno}, @tipo, @telefone)";
+                        SqlCommand comando =  new SqlCommand(consulta, conexao);
+                        conexao.Open();
+                        comando.Parameters.Add(new SqlParameter("@tipo", tipo));
+                        comando.Parameters.Add(new SqlParameter("@telefone", telefone));
+                        comando.ExecuteNonQuery();
 
-                        if(resultado > 0)
-                        {
-                            consulta = "SELECT codAluno FROM Aluno WHERE nome=@novoNome";
-                            comando = new SqlCommand(consulta, conexao);
-                            int codigoAlunoInserido = (int)comando.ExecuteScalar();
-
-                            bool controle = true;
-                            while(controle) 
-                            {
-                                Console.WriteLine("Digite os dados do telefone");
-                                string tipo = Console.ReadLine();
-                                string telefone = Console.ReadLine();
-                        
-                                consulta = $"INSERT INTO Telefone VALUES({codigoAlunoInserido}, @tipo, @telefone)";
-                                comando.Parameters.Add(new SqlParameter("@tipo", tipo));
-                                comando.Parameters.Add(new SqlParameter("@telefone", telefone));
-                                comando = new SqlCommand(consulta, conexao);
-                                comando.ExecuteNonQuery();
-
-                                Console.WriteLine("Deseja inserir um novo telefone? 1 para sim - 0 para não");
-                                controle = Convert.ToBoolean(Console.ReadLine());
-                            }
-                        }
-                    }
-                    else // O erro tá aqui
-                    {
-                        
-                        consulta = $"SELECT * FROM Telefone WHERE codAluno={codAluno}";
-                        comando = new SqlCommand(consulta, conexao);
-                        SqlDataReader leitorTelefone = comando.ExecuteReader(CommandBehavior.CloseConnection);
-                        while(leitorTelefone.Read())
-                        {
-                            string result = (string)leitorTelefone["telefone"];
-                            Console.WriteLine(result);
-                        }
-                    }
+                        Console.WriteLine("Deseja inserir um novo telefone? (SIM ou NAO) \n");
+                        resposta = Console.ReadLine();
+                    } 
                 }
                 catch
                 {
-                    Console.WriteLine("A conexão deu erro!");
+                    Console.WriteLine("Erro ao cadastrar telefone");
                 }
-                finally
+            }
+        }
+        private static void ExibirTelefones(int codAluno, string strConexao)
+        {
+            try
+            {
+                using (SqlConnection conexao = new SqlConnection(strConexao))
                 {
-                    if(conexao != null)
+                    string consulta = $"SELECT * FROM Telefone WHERE codAluno={codAluno}";
+                    SqlCommand comando = new SqlCommand(consulta, conexao);
+                    conexao.Open();
+                    SqlDataReader leitorTelefone = comando.ExecuteReader();
+                    while(leitorTelefone.Read())
                     {
-                        conexao.Close();
+                        string result = (string)leitorTelefone["telefone"];
+                        Console.WriteLine($"TELEFONE: {result}");
                     }
-                }
-                Console.WriteLine("O Programa foi finalizado!");
+                } 
+            }
+            catch
+            {
+                Console.WriteLine("Erro ao exibir os telefones");
+            }
         }
     }
 }
